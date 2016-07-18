@@ -13,12 +13,6 @@
 
 #import "XMNAlbumCell.h"
 
-@interface XMNAlbumListController ()
-
-- (void)loadAlbums;
-
-@end
-
 @interface XMNPhotoPickerController ()
 
 @end
@@ -38,7 +32,7 @@
         _photoPickerDelegate = delegate;
         _maxCount = maxCount ? : NSUIntegerMax;
         _autoPushToPhotoCollection = YES;
-        _pickingVideoEnable = NO;
+        _pickingVideoEnable = YES;
     }
     return self;
 }
@@ -71,27 +65,20 @@
     if ([XMNPhotoManager sharedManager].authorizationStatus == PHAuthorizationStatusNotDetermined) {
         //未决定是否授权 -> 启动定时器
         [PHPhotoLibrary requestAuthorization:^(PHAuthorizationStatus status) {
-
+            
         }];
-        [self performSelector:@selector(handleAuthorized) withObject:nil afterDelay:.1f];
+        [self performSelector:@selector(handleAuthorized) withObject:nil afterDelay:.3];
         return;
     }
     
     if ([[XMNPhotoManager sharedManager] hasAuthorized]) {
         //已授权
         [self autoPushPhotoCollectionViewController];
-        [self.viewControllers enumerateObjectsUsingBlock:^(__kindof UIViewController * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-           
-            if ([obj isKindOfClass:[XMNAlbumListController class]]) {
-                
-                [(XMNAlbumListController *)obj loadAlbums];
-                *stop =  YES;
-            }
-        }];
     }else {
         //未授权
         [self showUnAuthorizedTips];
     }
+    
 }
 
 /**
@@ -116,17 +103,9 @@
  *  @param assets 具体回传的资源
  */
 - (void)didFinishPickingPhoto:(NSArray<XMNAssetModel *> *)assets {
-    
     NSMutableArray *images = [NSMutableArray array];
     [assets enumerateObjectsUsingBlock:^(XMNAssetModel * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-
-        if (obj.previewImage) {
-            [images addObject:obj.previewImage];
-        }else if (obj.originImage) {
-            [images addObject:obj.originImage];
-        }else if (obj.thumbnail) {
-            [images addObject:obj.thumbnail];
-        }
+        [images addObject:obj.previewImage];
     }];
     if (self.photoPickerDelegate && [self.photoPickerDelegate respondsToSelector:@selector(photoPickerController:didFinishPickingPhotos:sourceAssets:)]) {
         [self.photoPickerDelegate photoPickerController:self didFinishPickingPhotos:images sourceAssets:assets];
@@ -229,30 +208,19 @@
     self.tableView.rowHeight = 70.0f;
     [self.tableView registerNib:[UINib nibWithNibName:@"XMNAlbumCell" bundle:nil ] forCellReuseIdentifier:@"XMNAlbumCell"];
     
-
-    [self loadAlbums];
-}
-
-
-
-#pragma mark - XMNAlbumListController Methods
-
-/**
- *  获取相册
- */
-- (void)loadAlbums {
-    
-    if ([XMNPhotoManager sharedManager].authorizationStatus == PHAuthorizationStatusNotDetermined) {
-        return;
-    }
     XMNPhotoPickerController *imagePickerVC = (XMNPhotoPickerController *)self.navigationController;
+
     __weak typeof(*&self) wSelf = self;
     [[XMNPhotoManager sharedManager] getAlbumsPickingVideoEnable:imagePickerVC.pickingVideoEnable completionBlock:^(NSArray<XMNAlbumModel *> *albums) {
         __strong typeof(*&wSelf) self = wSelf;
         self.albums = [NSArray arrayWithArray:albums];
         [self.tableView reloadData];
     }];
+    
 }
+
+
+#pragma mark - XMNAlbumListController Methods
 
 - (void)_handleCancelAction {
     

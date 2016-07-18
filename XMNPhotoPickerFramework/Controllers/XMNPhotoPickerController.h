@@ -19,10 +19,7 @@
 
 #pragma mark - Properties
 
-/**
- *  !!! 此属性修改为是否选择视频, 默认视频,图片不能同时选择
- *  默认为NO
- **/
+/** 是否允许选择视频 默认YES*/
 @property (nonatomic, assign) BOOL pickingVideoEnable;
 /** 是否自动push到相册页面 默认YES*/
 @property (nonatomic, assign) BOOL autoPushToPhotoCollection;

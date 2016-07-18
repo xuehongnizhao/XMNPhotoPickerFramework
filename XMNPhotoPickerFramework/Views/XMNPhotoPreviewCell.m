@@ -10,8 +10,6 @@
 
 #import "XMNAssetModel.h"
 
-#import "XMNPhotoPickerDefines.h"
-
 @interface XMNPhotoPreviewCell () <UIScrollViewDelegate>
 
 @property (nonatomic, strong) UIScrollView *scrollView;
@@ -54,33 +52,46 @@
     [singleTap requireGestureRecognizerToFail:doubleTap];
     [self.contentView addGestureRecognizer:singleTap];
     [self.contentView addGestureRecognizer:doubleTap];
+    
 }
 
 - (void)_resizeSubviews {
-    
     self.containerView.frame = self.bounds;
     UIImage *image = self.imageView.image;
     if (!image) {
         return;
     }
-    CGSize size = [[self class] adjustOriginSize:image.size
-                                     toTargetSize:CGSizeMake(self.bounds.size.width - kXMNPreviewPadding, self.bounds.size.height)];
-    self.containerView.frame = CGRectMake(0, 0, size.width, size.height);
+    CGFloat screenScale = [UIScreen mainScreen].scale;
+    CGFloat widthPercent = (image.size.width / screenScale) / self.frame.size.width;
+    CGFloat heightPercent = (image.size.height / screenScale) / self.frame.size.height;
+    if (widthPercent <= 1.0f && heightPercent <= 1.0f) {
+        self.containerView.bounds = CGRectMake(0, 0, image.size.width/screenScale, image.size.height/screenScale);
+        self.containerView.center = CGPointMake(self.bounds.size.width/2, self.bounds.size.height/2);
+    } else if (widthPercent > 1.0f && heightPercent < 1.0f) {
+        self.containerView.frame = CGRectMake(0, 0, self.frame.size.width, heightPercent * self.frame.size.width);
+    }else if (widthPercent <= 1.0f && heightPercent > 1.0f) {
+        self.containerView.frame = CGRectMake(0, 0, self.frame.size.height * widthPercent ,self.frame.size.height);
+    }else {
+        if (widthPercent > heightPercent) {
+            self.containerView.frame = CGRectMake(0, 0, self.frame.size.width, heightPercent * self.frame.size.width);
+        }else {
+            self.containerView.frame = CGRectMake(0, 0, self.frame.size.height * widthPercent ,self.frame.size.height);
+        }
+    }
     
-    self.scrollView.contentSize = CGSizeMake(MAX(self.frame.size.width - 16, self.containerView.bounds.size.width), MAX(self.frame.size.height, self.containerView.bounds.size.height));
+    self.scrollView.contentSize = CGSizeMake(self.frame.size.width, self.frame.size.height);
     [self.scrollView scrollRectToVisible:self.bounds animated:NO];
     self.scrollView.alwaysBounceVertical = self.containerView.frame.size.height <= self.frame.size.height ? NO : YES;
     self.imageView.frame = self.containerView.bounds;
-    [self scrollViewDidZoom:self.scrollView];
-    self.scrollView.maximumZoomScale = MAX(MAX(image.size.width/(self.bounds.size.width), image.size.height / self.bounds.size.height), 3.f);
+    
 }
+
 
 - (void)_handleSingleTap {
     self.singleTapBlock ? self.singleTapBlock() : nil;
 }
 
 - (void)_handleDoubleTap:(UITapGestureRecognizer *)doubleTap {
-    
     if (self.scrollView.zoomScale > 1.0f) {
         [self.scrollView setZoomScale:1.0 animated:YES];
     }else {
@@ -100,7 +111,6 @@
 }
 
 - (void)scrollViewDidZoom:(UIScrollView *)scrollView {
-    
     CGFloat offsetX = (scrollView.frame.size.width > scrollView.contentSize.width) ? (scrollView.frame.size.width - scrollView.contentSize.width) * 0.5 : 0.0;
     CGFloat offsetY = (scrollView.frame.size.height > scrollView.contentSize.height) ? (scrollView.frame.size.height - scrollView.contentSize.height) * 0.5 : 0.0;
     self.containerView.center = CGPointMake(scrollView.contentSize.width * 0.5 + offsetX, scrollView.contentSize.height * 0.5 + offsetY);
@@ -110,7 +120,7 @@
 
 - (UIScrollView *)scrollView {
     if (!_scrollView) {
-        _scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, self.bounds.size.width - kXMNPreviewPadding, self.bounds.size.height)];
+        _scrollView = [[UIScrollView alloc] initWithFrame:self.bounds];
         _scrollView.bouncesZoom = YES;
         _scrollView.maximumZoomScale = 3.0f;
         _scrollView.minimumZoomScale = 1.0f;
@@ -123,16 +133,13 @@
         _scrollView.delaysContentTouches = NO;
         _scrollView.canCancelContentTouches = YES;
         _scrollView.alwaysBounceVertical = NO;
-        
     }
     return _scrollView;
 }
 
 
 - (UIView *)containerView {
-    
     if (!_containerView) {
-        
         _containerView = [[UIView alloc] initWithFrame:self.bounds];
         _containerView.clipsToBounds = YES;
     }
@@ -143,40 +150,12 @@
     if (!_imageView) {
         
         _imageView = [[UIImageView alloc] initWithFrame:self.bounds];
-        _imageView.backgroundColor = [UIColor blackColor];
+        _imageView.backgroundColor = [UIColor colorWithWhite:1.000 alpha:0.500];
         _imageView.clipsToBounds = YES;
-        _imageView.contentMode = UIViewContentModeScaleAspectFill;
+        _imageView.contentMode = UIViewContentModeScaleAspectFit;
+        
     }
     return _imageView;
 }
 
-
-#pragma mark - Class Methods
-
-
-+ (CGSize)adjustOriginSize:(CGSize)originSize
-              toTargetSize:(CGSize)targetSize {
-    
-    CGSize resultSize = CGSizeMake(originSize.width, originSize.height);
-    
-    /** 计算图片的比例 */
-    CGFloat widthPercent = (originSize.width ) / (targetSize.width);
-    CGFloat heightPercent = (originSize.height ) / targetSize.height;
-    if (widthPercent <= 1.0f && heightPercent <= 1.0f) {
-        resultSize = CGSizeMake(originSize.width, originSize.height);
-    } else if (widthPercent > 1.0f && heightPercent < 1.0f) {
-        
-        resultSize = CGSizeMake(targetSize.width, (originSize.height * targetSize.width) / originSize.width);
-    }else if (widthPercent <= 1.0f && heightPercent > 1.0f) {
-        
-        resultSize = CGSizeMake((targetSize.height * originSize.width) / originSize.height, targetSize.height);
-    }else {
-        if (widthPercent > heightPercent) {
-            resultSize = CGSizeMake(targetSize.width, (originSize.height * targetSize.width) / originSize.width);
-        }else {
-            resultSize = CGSizeMake((targetSize.height * originSize.width) / originSize.height, targetSize.height);
-        }
-    }
-    return resultSize;
-}
 @end

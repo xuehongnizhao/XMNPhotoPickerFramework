@@ -111,7 +111,6 @@
 }
 
 - (void)_setupBottomBar {
-    
     XMNBottomBar *bottomBar = [[XMNBottomBar alloc] initWithBarType:XMNPreviewBottomBar];
     __weak typeof(*&self) wSelf = self;
     self.selectedVideoEnable ? [bottomBar setConfirmBlock:^{
@@ -140,7 +139,6 @@
 }
 
 - (void)_pausePlayer {
-    
     [self.playButton setImage:[UIImage imageNamed:@"video_preview_play_normal"] forState:UIControlStateNormal];
     [self.player pause];
     [self.navigationController setNavigationBarHidden:NO animated:YES];
@@ -151,8 +149,6 @@
 }
 
 - (void)_handleBackAction {
-    
-    self.didFinishPreviewBlock ? self.didFinishPreviewBlock() : nil;
     self.navigationController ? [self.navigationController popViewControllerAnimated:YES] : [self dismissViewControllerAnimated:YES completion:nil];
 }
 

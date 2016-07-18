@@ -33,7 +33,6 @@
 static NSString * const kXMNPhotoPreviewIdentifier = @"XMNPhotoPreviewCell";
 
 - (void)viewDidLoad {
-    
     [super viewDidLoad];
     
     self.automaticallyAdjustsScrollViewInsets = NO;
@@ -46,37 +45,31 @@ static NSString * const kXMNPhotoPreviewIdentifier = @"XMNPhotoPreviewCell";
 }
 
 - (void)viewWillAppear:(BOOL)animated {
-    
     [super viewWillAppear:animated];
     [self.navigationController setNavigationBarHidden:YES];
     [self.collectionView scrollToItemAtIndexPath:[NSIndexPath indexPathForItem:self.currentIndex inSection:0] atScrollPosition:UICollectionViewScrollPositionCenteredHorizontally animated:NO];
 }
 
 - (void)viewWillDisappear:(BOOL)animated {
-    
     [super viewWillDisappear:animated];
     [self.navigationController setNavigationBarHidden:NO];
 }
 
 - (BOOL)prefersStatusBarHidden {
-    
     return NO;
 }
 
 - (UIStatusBarStyle)preferredStatusBarStyle {
-    
     return UIStatusBarStyleLightContent;
 }
 
 - (void)dealloc {
-    
-    NSLog(@"%@  dealloc",NSStringFromClass([self class]));
+    NSLog(@"preview dealloc");
 }
 
 #pragma mark - Methods
 
 - (void)_setup {
-    
     [self.view addSubview:self.topBar];
     [self.view addSubview:self.bottomBar];
     [self _updateTopBarStatus];
@@ -90,9 +83,9 @@ static NSString * const kXMNPhotoPreviewIdentifier = @"XMNPhotoPreviewCell";
     self.collectionView.backgroundColor = [UIColor blackColor];
     self.collectionView.scrollsToTop = NO;
     self.collectionView.showsHorizontalScrollIndicator = NO;
-    self.collectionView.contentSize = CGSizeMake((self.view.frame.size.width + kXMNPreviewPadding) * self.assets.count, self.view.frame.size.height);
+    self.collectionView.contentSize = CGSizeMake(self.view.frame.size.width * self.assets.count, self.view.frame.size.height);
     self.collectionView.pagingEnabled = YES;
-    self.collectionView.frame = CGRectMake(0, 0, (self.view.frame.size.width + kXMNPreviewPadding), self.view.frame.size.height);
+    
 }
 
 - (void)_setupConstraints {
@@ -106,13 +99,11 @@ static NSString * const kXMNPhotoPreviewIdentifier = @"XMNPhotoPreviewCell";
 }
 
 - (void)_handleBackAction {
-    
     self.didFinishPreviewBlock ? self.didFinishPreviewBlock(self.selectedAssets) : nil;
     [self.navigationController popViewControllerAnimated:YES];
 }
 
 - (void)_handleStateChangeAction {
-    
     if (self.stateButton.selected) {
         [self.selectedAssets removeObject:self.assets[self.currentIndex]];
         self.assets[self.currentIndex].selected = NO;
@@ -132,7 +123,6 @@ static NSString * const kXMNPhotoPreviewIdentifier = @"XMNPhotoPreviewCell";
 }
 
 - (void)_updateTopBarStatus {
-    
     XMNAssetModel *asset = self.assets[self.currentIndex];
     self.stateButton.selected = asset.selected;
 }
@@ -164,18 +154,15 @@ static NSString * const kXMNPhotoPreviewIdentifier = @"XMNPhotoPreviewCell";
 #pragma mark <UICollectionViewDataSource>
 
 - (NSInteger)numberOfSectionsInCollectionView:(UICollectionView *)collectionView {
-    
     return 1;
 }
 
 
 - (NSInteger)collectionView:(UICollectionView *)collectionView numberOfItemsInSection:(NSInteger)section {
-    
     return self.assets.count;
 }
 
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
-    
     XMNPhotoPreviewCell *previewCell = [collectionView dequeueReusableCellWithReuseIdentifier:kXMNPhotoPreviewIdentifier forIndexPath:indexPath];
     [previewCell configCellWithItem:self.assets[indexPath.row]];
     __weak typeof(*&self) wSelf = self;
@@ -246,7 +233,8 @@ static NSString * const kXMNPhotoPreviewIdentifier = @"XMNPhotoPreviewCell";
             __weak typeof(*&self) self = wSelf;
             NSMutableArray *images = [NSMutableArray array];
             [self.selectedAssets enumerateObjectsUsingBlock:^(XMNAssetModel * _Nonnull obj, NSUInteger idx, BOOL * _Nonnull stop) {
-                [images addObject:obj];
+                
+                [images addObject:obj.originImage];
             }];
             self.didFinishPickingBlock ? self.didFinishPickingBlock(images,self.selectedAssets) : nil;
         }];
@@ -256,10 +244,10 @@ static NSString * const kXMNPhotoPreviewIdentifier = @"XMNPhotoPreviewCell";
 
 
 + (UICollectionViewLayout *)photoPreviewViewLayoutWithSize:(CGSize)size {
-    
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     layout.scrollDirection = UICollectionViewScrollDirectionHorizontal;
-    layout.itemSize = CGSizeMake(size.width + kXMNPreviewPadding, size.height);
+    
+    layout.itemSize = CGSizeMake(size.width, size.height);
     layout.minimumInteritemSpacing = 0;
     layout.minimumLineSpacing = 0;
     return layout;

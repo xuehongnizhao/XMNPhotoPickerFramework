@@ -121,7 +121,6 @@ static NSString * const kXMNAssetCellIdentifier = @"XMNAssetCell";
 }
 
 - (void)_handleCancelAction {
-    
     [self.navigationController dismissViewControllerAnimated:YES completion:nil];
     XMNPhotoPickerController *photoPickerVC = (XMNPhotoPickerController *)self.navigationController;
     [photoPickerVC didCancelPickingPhoto];
@@ -139,8 +138,6 @@ static NSString * const kXMNAssetCellIdentifier = @"XMNAssetCell";
 }
 
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
-    
-    
     XMNAssetCell *assetCell = [collectionView dequeueReusableCellWithReuseIdentifier:kXMNAssetCellIdentifier forIndexPath:indexPath];
     [assetCell configCellWithItem:self.assets[indexPath.row]];
     __weak typeof(*&self) wSelf = self;
@@ -221,7 +218,6 @@ static NSString * const kXMNAssetCellIdentifier = @"XMNAssetCell";
 #pragma mark - Getters
 
 + (UICollectionViewLayout *)photoCollectionViewLayoutWithWidth:(CGFloat)width {
-    
     UICollectionViewFlowLayout *layout = [[UICollectionViewFlowLayout alloc] init];
     CGFloat margin = kXMNMargin;
     layout.itemSize = kXMNThumbnailSize;

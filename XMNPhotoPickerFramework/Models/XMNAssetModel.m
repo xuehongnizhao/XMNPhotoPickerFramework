@@ -40,7 +40,6 @@
 @synthesize playerItem = _playerItem;
 @synthesize playerItemInfo = _playerItemInfo;
 @synthesize filename = _filename;
-@synthesize filepath = _filepath;
 
 #pragma mark - Methods
 
@@ -106,7 +105,6 @@
 }
 
 - (UIImage *)previewImage {
-    
     if (_previewImage) {
         return _previewImage;
     }
@@ -131,7 +129,6 @@
 }
 
 - (AVPlayerItem *)playerItem {
-    
     if (_playerItem) {
         return _playerItem;
     }
@@ -148,7 +145,6 @@
 
 
 - (NSDictionary *)playerItemInfo {
-    
     if (_playerItemInfo) {
         return _playerItemInfo;
     }
@@ -163,34 +159,17 @@
     return _playerItemInfo;
 }
 
-- (NSString *)filepath{
-    
-    if (!_filepath) {
-        
-        __block NSString *resultFilePath;
-        [[XMNPhotoManager sharedManager] getAssetPathWithAsset:self.asset completionBlock:^(NSString * _Nullable info) {
-            resultFilePath = [info copy];
-        }];
-        _filepath = [resultFilePath copy];
-    }
-    return _filepath;
-}
-
-- (NSString *)filename {
-    
+- (NSString *)filename{
     if (!_filename) {
-        __block NSString *resultFilePath;
-        if (self.filepath) {
-            resultFilePath = [self.filepath lastPathComponent];
-        }else {
-            [[XMNPhotoManager sharedManager] getAssetPathWithAsset:self.asset completionBlock:^(NSString * _Nullable info) {
-                resultFilePath = [info copy];
-            }];
-        }
-        _filename = [self.filepath lastPathComponent];
+        __block NSString *resultFilename;
+        [[XMNPhotoManager sharedManager] getAssetNameWithAsset:self.asset completionBlock:^(NSString * _Nullable info) {
+            resultFilename = [info copy];
+        }];
+        _filename = [resultFilename copy];
     }
     return _filename;
 }
+
 
 - (NSString *)description {
     return [NSString stringWithFormat:@"\n-------XMNAssetModel Desc Start-------\ntype : %d\nsuper :%@\n-------XMNAssetModel Desc End-------",(int)self.type,[super description]];

@@ -20,16 +20,6 @@
 @implementation XMNAlbumCell
 
 
-#pragma mark - Override Methods
-
-- (void)awakeFromNib {
-    
-    self.albumCoverImageView.layer.masksToBounds = YES;
-}
-
-
-#pragma mark - Methods
-
 - (void)configCellWithItem:(XMNAlbumModel * _Nonnull)item {
     
     NSMutableAttributedString *nameString = [[NSMutableAttributedString alloc] initWithString:item.name attributes:@{NSFontAttributeName:[UIFont systemFontOfSize:16],NSForegroundColorAttributeName:[UIColor blackColor]}];
@@ -38,27 +28,11 @@
     self.titleLabel.attributedText = nameString;
     
     __weak typeof(*&self) wSelf = self;
-
-    if (iOS8Later) {
-        [[XMNPhotoManager sharedManager] getThumbnailWithAsset:[item.fetchResult lastObject] size:kXMNThumbnailSize completionBlock:^(UIImage *image) {
-            __weak typeof(*&self) self = wSelf;
-            self.albumCoverImageView.image = image;
-        }];
-    }else {
-        ALAssetsGroup *assets = (ALAssetsGroup *)item.fetchResult;
-        
-        [assets enumerateAssetsWithOptions:NSEnumerationReverse usingBlock:^(ALAsset *result, NSUInteger index, BOOL *stop) {
-           
-            if (result) {
-                NSLog(@"this is last object :%@",result);
-                [[XMNPhotoManager sharedManager] getThumbnailWithAsset:result size:kXMNThumbnailSize completionBlock:^(UIImage *image) {
-                    __weak typeof(*&self) self = wSelf;
-                    self.albumCoverImageView.image = image;
-                }];
-                *stop =  YES;
-            }
-        }];
-    }
+    [[XMNPhotoManager sharedManager] getThumbnailWithAsset:[item.fetchResult lastObject] size:kXMNThumbnailSize completionBlock:^(UIImage *image) {
+        __weak typeof(*&self) self = wSelf;
+        self.albumCoverImageView.image = image;
+    }];
+    
 }
 
 @end

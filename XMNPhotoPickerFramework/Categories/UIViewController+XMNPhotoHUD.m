@@ -23,9 +23,6 @@
  *  @param title 具体提示的message
  */
 - (void)showAlertWithMessage:(NSString *)message {
-    
-
-    
     if (iOS8Later) {
         UIAlertController *alertC = [UIAlertController alertControllerWithTitle:nil message:message preferredStyle:UIAlertControllerStyleAlert];
         UIAlertAction *action = [UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleCancel handler:nil];

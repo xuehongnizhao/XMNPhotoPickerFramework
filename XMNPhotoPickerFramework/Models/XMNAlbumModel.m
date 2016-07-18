@@ -33,12 +33,10 @@
 + (XMNAlbumModel *)albumWithResult:(id)result name:(NSString *)name {
     XMNAlbumModel *model = [[XMNAlbumModel alloc] init];
     model.fetchResult = result;
-    
     model.name = [self _albumNameWithOriginName:name];
     if ([result isKindOfClass:[PHFetchResult class]]) {
         PHFetchResult *fetchResult = (PHFetchResult *)result;
         model.count = fetchResult.count;
-
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored"-Wdeprecated-declarations"
     } else if ([result isKindOfClass:[ALAssetsGroup class]]) {
@@ -50,7 +48,6 @@
 }
 
 + (NSString *)_albumNameWithOriginName:(NSString *)name {
-    
     if (iOS8Later) {
         NSString *newName;
         if ([name containsString:@"Roll"])         newName = @"相机胶卷";
@@ -61,7 +58,7 @@
         else if ([name containsString:@"Videos"])  newName = @"视频";
         else newName = name;
         return newName;
-    }else {
+    } else {
         return name;
     }
 }

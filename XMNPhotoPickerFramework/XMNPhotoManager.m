@@ -10,8 +10,6 @@
 
 #import "XMNPhotoManager.h"
 
-#import "UIImage+XMNResize.h"
-
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored"-Wdeprecated-declarations"
 
@@ -66,30 +64,18 @@
     
     NSMutableArray *albumArr = [NSMutableArray array];
     if (iOS8Later) {
+        PHFetchOptions *option = [[PHFetchOptions alloc] init];
+        if (!pickingVideoEnable) option.predicate = [NSPredicate predicateWithFormat:@"mediaType == %ld", PHAssetMediaTypeImage];
+        option.sortDescriptors = @[[NSSortDescriptor sortDescriptorWithKey:@"creationDate" ascending:YES]];
+        PHAssetCollectionSubtype smartAlbumSubtype = PHAssetCollectionSubtypeSmartAlbumUserLibrary | PHAssetCollectionSubtypeSmartAlbumRecentlyAdded | PHAssetCollectionSubtypeSmartAlbumVideos;
+        // For iOS 9, We need to show ScreenShots Album && SelfPortraits Album
+        if (iOS9Later) {
+            smartAlbumSubtype = PHAssetCollectionSubtypeSmartAlbumUserLibrary | PHAssetCollectionSubtypeSmartAlbumRecentlyAdded | PHAssetCollectionSubtypeSmartAlbumScreenshots | PHAssetCollectionSubtypeSmartAlbumSelfPortraits | PHAssetCollectionSubtypeSmartAlbumVideos;
+        }
+        PHFetchResult *smartAlbums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeSmartAlbum subtype:smartAlbumSubtype options:nil];
         
-        /** 根据github @suyongmaozhao(https://github.com/suyongmaozhao) 指出
-         *  获取相册时的谓词过滤 只能过滤 相册相关属性, PHAssetCollectionSubtype等
-         *  获取相册内资源时   可以过滤资源相关属性  , PHAssetMediaTypeImage等
-         *  此处需要注意
-         * */
-
-        /** 根据github @suyongmaozhao 兄弟的意见,获取相册时不进行过滤 */
-        /** 获取只能相册，过滤其中图片为0的 */
-        PHFetchResult *smartAlbums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeSmartAlbum subtype:PHAssetCollectionSubtypeAny options:nil];
-        /** 获取普通相册，过滤其中图片为0的 */
-        PHFetchResult *albums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeAlbum subtype:PHAssetCollectionSubtypeAny options:nil];
-    
         [smartAlbums enumerateObjectsUsingBlock:^(PHAssetCollection *collection  , NSUInteger idx, BOOL * _Nonnull stop) {
             
-            /** 修改pickingVideoEnable功能为 只选择视频 */
-            PHFetchOptions *option = [[PHFetchOptions alloc] init];
-            if (!pickingVideoEnable) {
-                option.predicate = [NSPredicate predicateWithFormat:@"mediaType = %ld", PHAssetMediaTypeImage];
-            }else {
-                option.predicate = [NSPredicate predicateWithFormat:@"mediaType = %ld", PHAssetMediaTypeVideo];
-            }
-            
-            // 针对 PHAsset 的谓词过滤才可以使用 mediaType
             PHFetchResult *fetchResult = [PHAsset fetchAssetsInAssetCollection:collection options:option];
             if (fetchResult.count > 0 && ![[collection.localizedTitle lowercaseString] containsString:@"delegate"]) {
                 if ([collection.localizedTitle isEqualToString:@"Camera Roll"]) {
@@ -100,16 +86,8 @@
             }
         }];
         
+        PHFetchResult *albums = [PHAssetCollection fetchAssetCollectionsWithType:PHAssetCollectionTypeAlbum subtype:PHAssetCollectionSubtypeAlbumRegular | PHAssetCollectionSubtypeAlbumSyncedAlbum options:nil];
         for (PHAssetCollection *collection in albums) {
-
-            /** 修改pickingVideoEnable功能为 只选择视频 */
-            PHFetchOptions *option = [[PHFetchOptions alloc] init];
-            if (!pickingVideoEnable) {
-                option.predicate = [NSPredicate predicateWithFormat:@"mediaType = %ld", PHAssetMediaTypeImage];
-            }else {
-                option.predicate = [NSPredicate predicateWithFormat:@"mediaType = %ld", PHAssetMediaTypeVideo];
-            }
-
             PHFetchResult *fetchResult = [PHAsset fetchAssetsInAssetCollection:collection options:option];
             if (fetchResult.count < 1) continue;
             if ([collection.localizedTitle isEqualToString:@"My Photo Stream"]) {
@@ -118,24 +96,12 @@
                 [albumArr addObject:[XMNAlbumModel albumWithResult:fetchResult name:collection.localizedTitle]];
             }
         }
-        
-//        /** 增加了根据相册内图片数量排序功能 */
-        [albumArr sortUsingComparator:^NSComparisonResult(XMNAlbumModel  *obj1, XMNAlbumModel *obj2) {
-            if (obj1.count >= obj2.count) {
-                return NSOrderedAscending;
-            }else {
-                return NSOrderedDescending;
-            }
-        }];
         completionBlock ? completionBlock(albumArr) : nil;
     }else {
         [self.assetLibrary enumerateGroupsWithTypes:ALAssetsGroupAll usingBlock:^(ALAssetsGroup *group, BOOL *stop) {
             if (group == nil) {
                 NSLog(@"group nil will do it");
                 completionBlock ? completionBlock(albumArr) : nil;
-                
-                /** fix bug before iOS8 will crash because here will be called twice */
-                *stop = YES;
             }
             if ([group numberOfAssets] < 1) return;
             NSString *name = [group valueForProperty:ALAssetsGroupPropertyName];
@@ -146,9 +112,8 @@
             } else {
                 [albumArr addObject:[XMNAlbumModel albumWithResult:group name:name]];
             }
-        } failureBlock:^(NSError *error) {
-            completionBlock ? completionBlock(albumArr) : nil;
-        }];
+        } failureBlock:nil];
+        completionBlock ? completionBlock(albumArr) : nil;
     }
 }
 
@@ -166,12 +131,12 @@
     NSMutableArray *photoArr = [NSMutableArray array];
     if ([result isKindOfClass:[PHFetchResult class]]) {
         for (PHAsset *asset in result) {
-            XMNAssetType type = [self _assetTypeWithOriginType:asset.mediaType];        
-            if (iOS9Later) {
-                if (asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive) {
-                    type = XMNAssetTypeLivePhoto;
-                }
+            XMNAssetType type = [self _assetTypeWithOriginType:asset.mediaType];
+#ifdef iOS9Later
+            if (asset.mediaSubtypes == PHAssetMediaSubtypePhotoLive) {
+                type = XMNAssetTypeLivePhoto;
             }
+#endif
             NSString *timeLength = type == XMNAssetTypeVideo ? [NSString stringWithFormat:@"%0.0f",asset.duration] : @"";
             timeLength = [self _timeStringFromSeconds:[timeLength intValue]];
             [photoArr addObject:[XMNAssetModel modelWithAsset:asset type:type timeLength:timeLength]];
@@ -182,16 +147,13 @@
         if (!pickingVideoEnable) [gruop setAssetsFilter:[ALAssetsFilter allPhotos]];
         [gruop enumerateAssetsUsingBlock:^(ALAsset *result, NSUInteger index, BOOL *stop) {
             /// Allow picking video
-            
-            if (result) {
-                if ([[result valueForProperty:ALAssetPropertyType] isEqualToString:ALAssetTypeVideo] && pickingVideoEnable) {
-                    NSTimeInterval duration = [[result valueForProperty:ALAssetPropertyDuration] integerValue];
-                    NSString *timeLength = [NSString stringWithFormat:@"%0.0f",duration];
-                    timeLength = [self _timeStringFromSeconds:timeLength.floatValue];
-                    [photoArr addObject:[XMNAssetModel modelWithAsset:result type:XMNAssetTypeVideo timeLength:timeLength]];
-                } else {
-                    [photoArr addObject:[XMNAssetModel modelWithAsset:result type:XMNAssetTypePhoto]];
-                }
+            if ([[result valueForProperty:ALAssetPropertyType] isEqualToString:ALAssetTypeVideo]) {
+                NSTimeInterval duration = [[result valueForProperty:ALAssetPropertyDuration] integerValue];
+                NSString *timeLength = [NSString stringWithFormat:@"%0.0f",duration];
+                timeLength = [self _timeStringFromSeconds:timeLength.floatValue];
+                [photoArr addObject:[XMNAssetModel modelWithAsset:result type:XMNAssetTypeVideo timeLength:timeLength]];
+            } else {
+                [photoArr addObject:[XMNAssetModel modelWithAsset:result type:XMNAssetTypePhoto]];
             }
         }];
         completionBlock ? completionBlock(photoArr) : nil;
@@ -252,7 +214,7 @@
     } else {
 
         CGImageRef fullResolutionImageRef = [[(ALAsset *)asset defaultRepresentation] fullResolutionImage];
-//        // 通过 fullResolutionImage 获取到的的高清图实际上并不带上在照片应用中使用“编辑”处理的效果，需要额外在 AlAssetRepresentation 中获取这些信息
+        // 通过 fullResolutionImage 获取到的的高清图实际上并不带上在照片应用中使用“编辑”处理的效果，需要额外在 AlAssetRepresentation 中获取这些信息
         NSString *adjustment = [[[(ALAsset *)asset defaultRepresentation] metadata] objectForKey:@"AdjustmentXMP"];
         if (adjustment) {
             // 如果有在照片应用中使用“编辑”效果，则需要获取这些编辑后的滤镜，手工叠加到原图中
@@ -273,9 +235,7 @@
             }
         }
         // 生成最终返回的 UIImage，同时把图片的 orientation 也补充上去
-        resultImage = [UIImage imageWithCGImage:fullResolutionImageRef
-                                          scale:[[asset defaultRepresentation] scale]
-                                    orientation:(UIImageOrientation)[[asset defaultRepresentation] orientation]];
+        resultImage = [UIImage imageWithCGImage:fullResolutionImageRef scale:[[asset defaultRepresentation] scale] orientation:(UIImageOrientation)[[asset defaultRepresentation] orientation]];
         completionBlock ? completionBlock(resultImage) : nil;
     }
 }
@@ -291,7 +251,6 @@
 - (void)getThumbnailWithAsset:(id _Nonnull)asset
                          size:(CGSize)size
               completionBlock:(void(^_Nonnull)(UIImage *_Nullable image))completionBlock {
-    
     if (iOS8Later) {
         PHImageRequestOptions *imageRequestOptions = [[PHImageRequestOptions alloc] init];
         imageRequestOptions.synchronous = YES;
@@ -302,26 +261,12 @@
             completionBlock ? completionBlock(result) : nil;
         }];
     } else {
-        
-        /** 判断下尺寸 是否符合一个thumb 尺寸 */
-        
-        UIImage *thumbnail = [UIImage imageWithCGImage:[asset thumbnail]];
-        if (size.width <= thumbnail.size.width && size.height <= thumbnail.size.height) {
-            completionBlock ? completionBlock(thumbnail) : nil;
-        }else {
-            [self getOriginImageWithAsset:asset completionBlock:^(UIImage * _Nullable image) {
-                
-                /** 可以选择返回一个压缩过的尺寸图片 */
-//                completionBlock ? completionBlock([image xmn_resizeImageToSize:[XMNPhotoManager adjustOriginSize:image.size toTargetSize:size]]) : nil;
-
-                /** 或者直接返回原图 */
-                completionBlock ? completionBlock(image) : nil;
-            }];
+        CGImageRef thumbnailImageRef = [asset thumbnail];
+        if (thumbnailImageRef) {
+            completionBlock ? completionBlock([UIImage imageWithCGImage:thumbnailImageRef]) : nil;
         }
-        
     }
 }
-
 
 /**
  *  根据asset 获取屏幕预览图
@@ -331,7 +276,6 @@
  */
 - (void)getPreviewImageWithAsset:(id _Nonnull)asset
                  completionBlock:(void(^_Nonnull)(UIImage * _Nullable image))completionBlock {
-    
     [self getThumbnailWithAsset:asset size:[UIScreen mainScreen].bounds.size completionBlock:completionBlock];
 }
 
@@ -343,21 +287,18 @@
  */
 - (void)getImageOrientationWithAsset:(id _Nonnull)asset
                      completionBlock:(void(^_Nonnull)(UIImageOrientation imageOrientation))completionBlock {
-    
-    
     if (iOS8Later) {
         PHImageRequestOptions *imageRequestOptions = [[PHImageRequestOptions alloc] init];
         imageRequestOptions.synchronous = YES;
         [self.cachingImageManager requestImageDataForAsset:asset options:imageRequestOptions resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
             completionBlock ? completionBlock(orientation) : nil;
         }];
-    }else {
+    } else {
         completionBlock ? completionBlock([[asset valueForProperty:@"ALAssetPropertyOrientation"] integerValue]) : nil;
     }
 }
 
 - (void)getAssetSizeWithAsset:(id)asset completionBlock:(void(^)(CGFloat size))completionBlock {
-    
     if ([asset isKindOfClass:[PHAsset class]]) {
         [[PHImageManager defaultManager] requestImageDataForAsset:asset options:nil resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
             completionBlock ? completionBlock(imageData.length) : nil;
@@ -375,12 +316,8 @@
  *  @param asset           PHAsset or ALAsset
  *  @param completionBlock 回调block
  */
-- (void)getAssetNameWithAsset:(id _Nonnull)asset
-              completionBlock:(void(^ _Nonnull)(NSString *_Nullable info))completionBlock {
-    
+- (void)getAssetNameWithAsset:(id _Nonnull)asset completionBlock:(void(^ _Nonnull)(NSString *_Nullable info))completionBlock {
     if ([asset isKindOfClass:[PHAsset class]]) {
-        
-        
         if (iOS9Later) {
             PHAssetResource *assetResource = [[PHAssetResource assetResourcesForAsset:asset] firstObject];
             completionBlock ? completionBlock(assetResource ? [assetResource originalFilename] : @"unknown") : nil;
@@ -388,34 +325,13 @@
             PHImageRequestOptions *imageRequestOptions = [[PHImageRequestOptions alloc] init];
             imageRequestOptions.synchronous = YES;
             [self.cachingImageManager requestImageDataForAsset:asset options:imageRequestOptions resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
-                completionBlock ? completionBlock([info[@"PHImageFileURLKey"] lastPathComponent]) : nil;
+                NSLog(@"11");
+                completionBlock ? completionBlock(                [info[@"PHImageFileURLKey"] lastPathComponent]) : nil;
             }];
         }
     } else if ([asset isKindOfClass:[ALAsset class]]) {
         ALAssetRepresentation *representation = [asset defaultRepresentation];
         completionBlock ? completionBlock([representation filename]) : nil;
-    }
-}
-
-
-/**
- *  根据asset 获取对应的路径
- *
- *  @param asset           PHAsset or ALAsset
- *  @param completionBlock 回调block
- */
-- (void)getAssetPathWithAsset:(id _Nonnull)asset
-              completionBlock:(void(^ _Nonnull)(NSString *_Nullable info))completionBlock {
-    
-    if ([asset isKindOfClass:[PHAsset class]]) {
-        PHImageRequestOptions *imageRequestOptions = [[PHImageRequestOptions alloc] init];
-        imageRequestOptions.synchronous = YES;
-        [self.cachingImageManager requestImageDataForAsset:asset options:imageRequestOptions resultHandler:^(NSData * _Nullable imageData, NSString * _Nullable dataUTI, UIImageOrientation orientation, NSDictionary * _Nullable info) {
-            completionBlock ? completionBlock([info[@"PHImageFileURLKey"] absoluteString]) : nil;
-        }];
-    } else if ([asset isKindOfClass:[ALAsset class]]) {
-        ALAssetRepresentation *representation = [asset defaultRepresentation];
-        completionBlock ? completionBlock([[representation url] absoluteString]) : nil;
     }
 }
 /**
@@ -426,7 +342,6 @@
  */
 - (void)getVideoInfoWithAsset:(id _Nonnull)asset
               completionBlock:(void(^ _Nonnull)(AVPlayerItem * _Nullable playerItem,NSDictionary * _Nullable playetItemInfo))completionBlock {
-    
     if ([asset isKindOfClass:[PHAsset class]]) {
         [[PHImageManager defaultManager] requestPlayerItemForVideo:asset options:nil resultHandler:^(AVPlayerItem * _Nullable playerItem, NSDictionary * _Nullable info) {
             completionBlock ? completionBlock(playerItem,info) : nil;
@@ -456,34 +371,4 @@
 }
 
 #pragma clang diagnostic pop
-
-
-
-#pragma mark - Class Methods
-
-+ (CGSize)adjustOriginSize:(CGSize)originSize
-              toTargetSize:(CGSize)targetSize {
-    
-    CGSize resultSize = CGSizeMake(originSize.width, originSize.height);
-    
-    /** 计算图片的比例 */
-    CGFloat widthPercent = (originSize.width ) / (targetSize.width);
-    CGFloat heightPercent = (originSize.height ) / targetSize.height;
-    if (widthPercent <= 1.0f && heightPercent <= 1.0f) {
-        resultSize = CGSizeMake(originSize.width, originSize.height);
-    } else if (widthPercent > 1.0f && heightPercent < 1.0f) {
-        
-        resultSize = CGSizeMake(targetSize.width, (originSize.height * targetSize.width) / originSize.width);
-    }else if (widthPercent <= 1.0f && heightPercent > 1.0f) {
-        
-        resultSize = CGSizeMake((targetSize.height * originSize.width) / originSize.height, targetSize.height);
-    }else {
-        if (widthPercent > heightPercent) {
-            resultSize = CGSizeMake(targetSize.width, (originSize.height * targetSize.width) / originSize.width);
-        }else {
-            resultSize = CGSizeMake((targetSize.height * originSize.width) / originSize.height, targetSize.height);
-        }
-    }
-    return resultSize;
-}
 @end
